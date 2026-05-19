@@ -1,0 +1,189 @@
+═══════════════════════════════════════════════════════════════════════════
+  GUÍA RÁPIDA - PRÁCTICA 3: SISTEMA DE CHAT TCP CON MYSQL Y MONGODB
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 1: INSTALAR HERRAMIENTAS
+═════════════════════════════
+sudo apt update
+sudo apt install python3 python3-pip python3-venv python3-full mysql-server mongodb git -y
+
+PASO 2: CONFIGURAR MYSQL
+════════════════════════
+sudo service mysql start
+sudo mysql
+
+Dentro de MySQL ejecutar:
+  CREATE DATABASE chat_db;
+  USE chat_db;
+  
+  CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  
+  CREATE TABLE mensajes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT,
+    contenido TEXT,
+    fecha_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id)
+  );
+  
+  exit
+
+PASO 3: CONFIGURAR MONGODB
+═══════════════════════════
+sudo service mongodb start
+mongosh
+
+Dentro de MongoDB ejecutar:
+  use chat_db
+  db.usuarios.insertOne({
+    nombre: 'Alex',
+    email: 'alex@email.com',
+    mensajes: [
+      { contenido: 'Hola', fecha: new Date() }
+    ]
+  })
+  db.usuarios.find().pretty()
+  exit
+
+PASO 4: CREAR ENTORNO PYTHON
+═════════════════════════════
+cd ~
+mkdir socket_project
+cd socket_project
+python3 -m venv venv
+source venv/bin/activate
+pip install mysql-connector-python pymongo
+
+PASO 5: CREAR ARCHIVOS PYTHON
+══════════════════════════════
+Copiar los archivos:
+  - server.py (proporcionado)
+  - client.py (proporcionado)
+
+En la carpeta ~/socket_project
+
+PASO 6: EJECUTAR EL CHAT
+════════════════════════
+
+TERMINAL 1 (SERVIDOR):
+  cd ~/socket_project
+  source venv/bin/activate
+  sudo service mysql start
+  sudo service mongodb start
+  python3 server.py
+  
+  Resultado esperado:
+  "Servidor multiusuario escuchando en 0.0.0.0:5000..."
+
+TERMINAL 2 (CLIENTE 1):
+  cd ~/socket_project
+  source venv/bin/activate
+  python3 client.py
+  Ingresa tu nombre: Alex
+
+TERMINAL 3 (CLIENTE 2):
+  cd ~/socket_project
+  source venv/bin/activate
+  python3 client.py
+  Ingresa tu nombre: Juan
+
+PASO 7: VERIFICAR DATOS GUARDADOS
+══════════════════════════════════
+
+En MySQL (nueva terminal):
+  mysql -u root -p1234
+  USE chat_db;
+  SELECT * FROM usuarios;
+  SELECT * FROM mensajes;
+  exit
+
+En MongoDB (nueva terminal):
+  mongosh
+  use chat_db
+  db.usuarios.find().pretty()
+  exit
+
+PASO 8: SUBIR A GITHUB
+══════════════════════
+cd ~/socket_project
+git config --global user.email "tu@email.com"
+git config --global user.name "Tu Nombre"
+git init
+git add .
+git commit -m "Practica3: Sistema de chat TCP con MySQL y MongoDB"
+git remote add origin https://github.com/TuUsuario/practica3-chat-tcp.git
+git branch -M main
+git push -u origin main
+
+═══════════════════════════════════════════════════════════════════════════
+                         COMANDOS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════
+
+Iniciar servicios:
+  sudo service mysql start
+  sudo service mongodb start
+
+Ver estado:
+  sudo service mysql status
+  sudo service mongodb status
+
+Entrar a MySQL:
+  sudo mysql
+  O: mysql -u root -p1234
+
+Entrar a MongoDB:
+  mongosh
+
+Activar entorno Python:
+  source venv/bin/activate
+
+Desactivar entorno:
+  deactivate
+
+Instalar librerías:
+  pip install mysql-connector-python pymongo
+
+Ver archivos del proyecto:
+  ls ~/socket_project/
+
+═══════════════════════════════════════════════════════════════════════════
+                         SOLUCIÓN DE PROBLEMAS
+═══════════════════════════════════════════════════════════════════════════
+
+Error: "Address already in use :5000"
+  lsof -i :5000
+  kill -9 <PID>
+
+Error: "Connection refused"
+  Asegúrate de que el servidor esté corriendo en Terminal 1
+
+Error: "ModuleNotFoundError: mysql"
+  Activa el entorno: source venv/bin/activate
+  Reinstala: pip install mysql-connector-python
+
+Error: "externally-managed-environment"
+  Usa siempre el entorno virtual: source venv/bin/activate
+
+Error: "Can't connect to MySQL socket"
+  Inicia MySQL: sudo service mysql start
+
+═══════════════════════════════════════════════════════════════════════════
+                    ESTRUCTURA DE ARCHIVOS ESPERADA
+═══════════════════════════════════════════════════════════════════════════
+
+~/socket_project/
+├── venv/                    (Entorno virtual)
+├── server.py               (Servidor TCP)
+├── client.py               (Cliente TCP)
+└── .git/                   (Control de versiones)
+
+═══════════════════════════════════════════════════════════════════════════
+
+Para más detalles, consulta el documento: Practica3_Chat_TCP_MySQL_MongoDB.docx
+
+═══════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,468 @@
+═══════════════════════════════════════════════════════════════════════════
+    EXPLICACIÓN DETALLADA DE CÓDIGOS - PRÁCTICA 3
+═══════════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════════
+                         EXPLICACIÓN: SERVER.PY
+═══════════════════════════════════════════════════════════════════════════
+
+SECCIÓN 1: IMPORTACIONES Y CONFIGURACIÓN
+═════════════════════════════════════════
+
+import socket
+import threading
+import mysql.connector
+from pymongo import MongoClient
+from datetime import datetime
+
+- socket: Para crear conexiones TCP/IP entre servidor y clientes
+- threading: Para manejar múltiples clientes simultáneamente
+- mysql.connector: Para conectar con la base de datos MySQL
+- MongoClient: Para conectar con MongoDB
+- datetime: Para registrar la hora de los mensajes
+
+HOST = '0.0.0.0'    # Escucha en todas las interfaces de red
+PORT = 5000         # Puerto TCP en el que escucha el servidor
+clientes = []       # Lista para almacenar los clientes conectados
+
+
+SECCIÓN 2: CONEXIONES A LAS BASES DE DATOS
+═════════════════════════════════════════
+
+db_mysql = mysql.connector.connect(
+    host='localhost',
+    user='root',
+    password='1234',
+    database='chat_db'
+)
+cursor = db_mysql.cursor()
+
+Explicación:
+- host='localhost': Se conecta a la máquina local
+- user='root': Usuario de MySQL
+- password='1234': Contraseña configurada en MySQL
+- database='chat_db': Selecciona la base de datos del chat
+- cursor: Objeto para ejecutar comandos SQL
+
+mongo_client = MongoClient('mongodb://localhost:27017/')
+db_mongo = mongo_client['chat_db']
+
+Explicación:
+- Conecta a MongoDB en la máquina local
+- mongodb://localhost:27017/ es la URL por defecto de MongoDB
+- db_mongo accede a la base de datos 'chat_db'
+
+
+SECCIÓN 3: FUNCIÓN guardar_mensaje()
+═════════════════════════════════════
+
+def guardar_mensaje(nombre, contenido):
+    """Guarda el mensaje en MySQL y MongoDB"""
+    try:
+        # Guardar en MySQL
+        cursor.execute('SELECT id FROM usuarios WHERE nombre = %s', (nombre,))
+        usuario = cursor.fetchone()
+        
+        if usuario:
+            id_usuario = usuario[0]
+            cursor.execute(
+                'INSERT INTO mensajes (id_usuario, contenido) VALUES (%s, %s)',
+                (id_usuario, f'{nombre}: {contenido}')
+            )
+            db_mysql.commit()
+
+Explicación:
+1. Busca el ID del usuario en MySQL
+2. Si existe, inserta el mensaje en la tabla mensajes
+3. db_mysql.commit() confirma la transacción
+
+        # Guardar en MongoDB
+        db_mongo.usuarios.update_one(
+            {'nombre': nombre},
+            {'$push': {'mensajes': {'contenido': contenido, 'fecha': datetime.now()}}}
+        )
+
+Explicación:
+1. Busca el usuario por su nombre
+2. {'$push': ...} agrega un mensaje a la lista 'mensajes'
+3. El mensaje incluye contenido y timestamp
+
+    except Exception as e:
+        print(f'Error al guardar mensaje: {e}')
+
+Captura cualquier error durante el proceso
+
+
+SECCIÓN 4: FUNCIÓN manejar_cliente()
+═════════════════════════════════════
+
+def manejar_cliente(conn, addr):
+    """Maneja la conexión de cada cliente en un hilo separado"""
+    print(f'Nuevo cliente conectado: {addr}')
+
+Se ejecuta en un hilo separado para cada cliente, permitiendo múltiples
+conexiones simultáneas.
+
+    try:
+        # Recibir nombre del cliente
+        nombre = conn.recv(1024).decode()
+
+- conn.recv(1024): Recibe hasta 1024 bytes del cliente
+- .decode(): Convierte bytes a string
+- El cliente envía su nombre primero
+
+
+        # Crear usuario en MySQL si no existe
+        cursor.execute('SELECT id FROM usuarios WHERE nombre = %s', (nombre,))
+        if not cursor.fetchone():
+            cursor.execute(
+                'INSERT INTO usuarios (nombre, email) VALUES (%s, %s)',
+                (nombre, f'{nombre.lower()}@email.com')
+            )
+            db_mysql.commit()
+
+Verificar si el usuario ya existe en MySQL. Si no, lo crea automáticamente.
+
+
+        # Crear documento en MongoDB si no existe
+        if not db_mongo.usuarios.find_one({'nombre': nombre}):
+            db_mongo.usuarios.insert_one({
+                'nombre': nombre,
+                'email': f'{nombre.lower()}@email.com',
+                'mensajes': []
+            })
+
+Lo mismo para MongoDB: si el usuario no existe, lo crea con un array
+vacío de mensajes.
+
+
+        clientes.append((conn, nombre))
+        print(f'{nombre} se ha conectado desde {addr}')
+        
+        # Notificar a otros clientes
+        mensaje_conexion = f'*** {nombre} se ha conectado al chat ***'
+        for c, n in clientes:
+            if c != conn:
+                c.sendall(mensaje_conexion.encode())
+
+Agrega el cliente a la lista y notifica a todos los demás que alguien
+se conectó.
+
+
+        # Recibir mensajes del cliente
+        while True:
+            data = conn.recv(1024).decode()
+            
+            if not data or data.lower() == 'salir':
+                break
+            
+            # Guardar en bases de datos
+            guardar_mensaje(nombre, data)
+            
+            # Mensaje completo
+            mensaje = f'{nombre}: {data}'
+            print(f'[{addr}] {mensaje}')
+            
+            # Enviar a otros clientes
+            for c, n in clientes:
+                if c != conn:
+                    c.sendall(mensaje.encode())
+
+Bucle principal:
+1. Recibe mensajes del cliente
+2. Si dice "salir", sale del bucle
+3. Guarda el mensaje en ambas bases de datos
+4. Lo reenvía a todos los demás clientes
+
+
+    finally:
+        # Eliminar cliente de la lista
+        clientes.remove((conn, nombre))
+        conn.close()
+        print(f'{nombre} se ha desconectado')
+        
+        # Notificar desconexión
+        mensaje_desconexion = f'*** {nombre} se ha desconectado del chat ***'
+        for c, n in clientes:
+            c.sendall(mensaje_desconexion.encode())
+
+Cuando el cliente se desconecta:
+1. Lo elimina de la lista
+2. Cierra la conexión
+3. Notifica a otros clientes
+
+
+SECCIÓN 5: CREAR Y EJECUTAR SERVIDOR
+═════════════════════════════════════
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind((HOST, PORT))
+server.listen(5)
+
+- socket.AF_INET: IPv4
+- socket.SOCK_STREAM: TCP (no UDP)
+- SO_REUSEADDR: Permite reutilizar el puerto rápidamente
+- bind(): Asigna el HOST y PORT
+- listen(5): Puede tener 5 conexiones en espera
+
+
+print(f'Servidor multiusuario escuchando en {HOST}:{PORT}...')
+
+try:
+    while True:
+        conn, addr = server.accept()
+        # Crear hilo para cada cliente
+        t = threading.Thread(target=manejar_cliente, args=(conn, addr))
+        t.daemon = True
+        t.start()
+
+- Acepta conexiones infinitamente
+- Para cada conexión, crea un nuevo hilo
+- daemon=True: El hilo se cierra cuando finaliza el programa
+
+
+═══════════════════════════════════════════════════════════════════════════
+                         EXPLICACIÓN: CLIENT.PY
+═══════════════════════════════════════════════════════════════════════════
+
+SECCIÓN 1: IMPORTACIONES
+════════════════════════
+
+import socket
+import threading
+import sys
+
+El cliente necesita socket para conectarse, threading para recibir
+mensajes mientras envía otros, y sys para manejo de excepciones.
+
+HOST = 'localhost'  # Se conecta al servidor en la máquina local
+PORT = 5000         # Puerto del servidor
+
+
+SECCIÓN 2: FUNCIÓN recibir_mensajes()
+══════════════════════════════════════
+
+def recibir_mensajes(client):
+    """Hilo para recibir mensajes del servidor de forma continua"""
+    while True:
+        try:
+            data = client.recv(1024).decode()
+            if data:
+                print(f'\n{data}')
+                print('Tu: ', end='', flush=True)
+            else:
+                break
+        except:
+            break
+
+¿Por qué necesitamos un hilo separado?
+- El programa principal envía mensajes (espera input del usuario)
+- Este hilo recibe mensajes constantemente
+- Sin el hilo, no podría recibir mientras espera input
+
+end='': No añade salto de línea después del prompt
+flush=True: Asegura que el prompt aparezca inmediatamente
+
+
+SECCIÓN 3: FUNCIÓN main()
+═════════════════════════
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+try:
+    # Conectar al servidor
+    client.connect((HOST, PORT))
+    print(f'Conectado al servidor {HOST}:{PORT}')
+
+Se intenta conectar al servidor en el HOST:PORT especificados.
+
+
+    # Pedir nombre de usuario
+    nombre = input('Ingresa tu nombre: ')
+    client.sendall(nombre.encode())
+
+El cliente envía su nombre al servidor primero.
+
+
+    # Crear hilo para recibir mensajes
+    t = threading.Thread(target=recibir_mensajes, args=(client,), daemon=True)
+    t.start()
+
+Inicia el hilo que recibe mensajes en segundo plano.
+
+
+    print('Conectado al servidor. Escribe mensajes...\n')
+    
+    # Enviar mensajes
+    while True:
+        try:
+            mensaje = input('Tu: ')
+            
+            if mensaje.lower() == 'salir':
+                client.sendall('salir'.encode())
+                break
+            
+            if mensaje:
+                client.sendall(mensaje.encode())
+
+Bucle principal del cliente:
+1. Pide input del usuario
+2. Si es "salir", lo envía y sale
+3. Si no está vacío, lo envía al servidor
+
+
+    except ConnectionRefusedError:
+        print('Error: No se puede conectar al servidor. ¿Está corriendo?')
+
+Si el servidor no está disponible, muestra un error claro.
+
+
+    finally:
+        client.close()
+        print('Desconectado del servidor')
+
+Cierra la conexión al finalizar.
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      DIFERENCIA MySQL vs MongoDB
+═══════════════════════════════════════════════════════════════════════════
+
+MYSQL (SQL - Relacional):
+  Tabla usuarios:
+  ┌─────┬────────┬─────────────────┐
+  │ id  │ nombre │ email           │
+  ├─────┼────────┼─────────────────┤
+  │  1  │ Alex   │ alex@email.com  │
+  │  2  │ Juan   │ juan@email.com  │
+  └─────┴────────┴─────────────────┘
+  
+  Tabla mensajes:
+  ┌─────┬────────────┬───────────┬──────────────┐
+  │ id  │ id_usuario │ contenido │ fecha_envio  │
+  ├─────┼────────────┼───────────┼──────────────┤
+  │  1  │     1      │ Hola      │ 2026-05-...  │
+  │  2  │     2      │ Qué tal   │ 2026-05-...  │
+  │  3  │     1      │ Bien      │ 2026-05-...  │
+  └─────┴────────────┴───────────┴──────────────┘
+
+
+MONGODB (NoSQL - Documental):
+  Documentos en colección 'usuarios':
+  {
+    "_id": ObjectId("..."),
+    "nombre": "Alex",
+    "email": "alex@email.com",
+    "mensajes": [
+      { "contenido": "Hola", "fecha": ISODate("2026-05-...") },
+      { "contenido": "Bien", "fecha": ISODate("2026-05-...") }
+    ]
+  }
+  
+  {
+    "_id": ObjectId("..."),
+    "nombre": "Juan",
+    "email": "juan@email.com",
+    "mensajes": [
+      { "contenido": "Qué tal", "fecha": ISODate("2026-05-...") }
+    ]
+  }
+
+
+VENTAJAS DE CADA UNA:
+
+MySQL:
+  ✓ Estructura fija y predecible
+  ✓ Buen para datos relacionados
+  ✓ Fácil de consultar con JOIN
+  ✓ Mejor para transacciones complejas
+
+MongoDB:
+  ✓ Flexible: cada documento puede ser diferente
+  ✓ Excelente para datos anidados
+  ✓ Más rápido para consultas que no necesitan JOIN
+  ✓ Escala mejor horizontalmente
+
+
+═══════════════════════════════════════════════════════════════════════════
+                    FLUJO DEL SISTEMA DE CHAT
+═══════════════════════════════════════════════════════════════════════════
+
+1. INICIO
+   ┌─────────────────┐
+   │ Iniciar servidor│
+   └────────┬────────┘
+            │
+            ▼
+   ┌─────────────────────┐
+   │ Escuchar en :5000   │
+   └────────┬────────────┘
+            │
+            │ Cliente 1 se conecta
+            ▼
+   ┌──────────────────────────┐
+   │ Recibir nombre (Alex)    │
+   │ Crear en MySQL           │
+   │ Crear en MongoDB         │
+   │ Notificar a otros        │
+   └────────┬─────────────────┘
+            │
+            │ Cliente 2 se conecta
+            ▼
+   ┌──────────────────────────┐
+   │ Recibir nombre (Juan)    │
+   │ Crear en MySQL           │
+   │ Crear en MongoDB         │
+   │ Notificar: "Juan entró"  │
+   └────────┬─────────────────┘
+            │
+            │ Alex envía "Hola"
+            ▼
+   ┌──────────────────────────────┐
+   │ Guardar en MySQL:            │
+   │   INSERT INTO mensajes...    │
+   │ Guardar en MongoDB:          │
+   │   db.usuarios.update_one()   │
+   │ Enviar a Juan: "Alex: Hola"  │
+   └────────┬─────────────────────┘
+            │
+            │ Juan envía "Qué tal"
+            ▼
+   ┌──────────────────────────────┐
+   │ Guardar en MySQL             │
+   │ Guardar en MongoDB           │
+   │ Enviar a Alex: "Juan: Qué tal"
+   └────────┬─────────────────────┘
+            │
+            │ Ambos leen mensajes en BD
+            ▼
+   ┌──────────────────────────────┐
+   │ MySQL: SELECT * FROM mensajes│
+   │ MongoDB: db.usuarios.find()  │
+   └──────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        CONCEPTOS CLAVE
+═══════════════════════════════════════════════════════════════════════════
+
+SOCKET TCP/IP:
+  - Conexión orientada a la conexión
+  - Garantiza entrega de datos en orden
+  - Puerto 5000 es donde escucha el servidor
+
+THREADING:
+  - Permite múltiples clientes simultáneamente
+  - Cada cliente corre en su propio hilo
+  - Sin threading, solo podría atender a 1 cliente a la vez
+
+TRANSACCIONES:
+  - db_mysql.commit(): Confirma cambios en MySQL
+  - Sin commit(), los cambios no se guardan
+
+ÍNDICES:
+  - email VARCHAR(100) UNIQUE: No permite duplicados
+  - PRIMARY KEY: Identifica unícamente cada fila
+
+═══════════════════════════════════════════════════════════════════════════

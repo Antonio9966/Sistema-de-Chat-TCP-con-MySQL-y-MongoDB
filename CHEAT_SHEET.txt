@@ -1,0 +1,501 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                   CHEAT SHEET - COMANDOS IMPORTANTES                     ║
+║                 PRÁCTICA 3: CHAT TCP CON MYSQL Y MONGODB                ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        COMANDOS DEL SISTEMA
+═══════════════════════════════════════════════════════════════════════════
+
+Actualizar sistema:
+  sudo apt update
+  sudo apt upgrade
+
+Listar archivos:
+  ls                    (lista simple)
+  ls -l                 (con detalles)
+  ls -la                (con archivos ocultos)
+
+Cambiar directorio:
+  cd ~                  (ir a home)
+  cd /ruta              (ir a carpeta específica)
+  cd ..                 (ir a carpeta anterior)
+
+Crear directorio:
+  mkdir nombre_carpeta
+
+Ver ruta actual:
+  pwd
+
+Ver contenido de archivo:
+  cat archivo.txt
+  less archivo.txt
+
+Copiar archivo:
+  cp archivo.txt copia.txt
+
+Mover/renombrar:
+  mv archivo.txt nuevo_nombre.txt
+
+Eliminar:
+  rm archivo.txt        (archivo)
+  rm -r carpeta/        (carpeta)
+
+Buscar puerto en uso:
+  lsof -i :5000
+
+Matar proceso:
+  kill -9 PID
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      COMANDOS PYTHON Y VIRTUAL ENV
+═══════════════════════════════════════════════════════════════════════════
+
+Ver versión de Python:
+  python3 --version
+
+Crear entorno virtual:
+  python3 -m venv venv
+
+Activar entorno:
+  source venv/bin/activate
+
+Desactivar entorno:
+  deactivate
+
+Instalar paquete:
+  pip install nombre_paquete
+
+Instalar múltiples:
+  pip install mysql-connector-python pymongo
+
+Ver paquetes instalados:
+  pip list
+
+Crear archivo de requisitos:
+  pip freeze > requirements.txt
+
+Instalar desde requisitos:
+  pip install -r requirements.txt
+
+Ejecutar programa:
+  python3 archivo.py
+
+Ejecutar con permisos:
+  sudo python3 archivo.py
+
+Ejecutar en segundo plano:
+  python3 archivo.py &
+
+Ver procesos Python:
+  ps aux | grep python
+
+
+═══════════════════════════════════════════════════════════════════════════
+                       COMANDOS DE MYSQL
+═══════════════════════════════════════════════════════════════════════════
+
+Ver versión:
+  mysql --version
+
+Iniciar servicio:
+  sudo service mysql start
+
+Parar servicio:
+  sudo service mysql stop
+
+Ver estado:
+  sudo service mysql status
+
+Entrar a MySQL sin contraseña:
+  sudo mysql
+
+Entrar a MySQL con contraseña:
+  mysql -u root -p          (pide contraseña)
+  mysql -u root -p1234      (contraseña en línea)
+
+Dentro de MySQL:
+
+  Mostrar bases de datos:
+    SHOW DATABASES;
+
+  Crear base de datos:
+    CREATE DATABASE chat_db;
+
+  Usar base de datos:
+    USE chat_db;
+
+  Mostrar tablas:
+    SHOW TABLES;
+
+  Crear tabla:
+    CREATE TABLE usuarios (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nombre VARCHAR(100)
+    );
+
+  Insertar datos:
+    INSERT INTO usuarios (nombre) VALUES ('Alex');
+
+  Ver datos:
+    SELECT * FROM usuarios;
+    SELECT nombre, email FROM usuarios;
+    SELECT * FROM usuarios WHERE id = 1;
+
+  Actualizar:
+    UPDATE usuarios SET nombre = 'Juan' WHERE id = 1;
+
+  Eliminar:
+    DELETE FROM usuarios WHERE id = 1;
+
+  Describir tabla:
+    DESCRIBE usuarios;
+
+  Salir:
+    exit
+    \q
+    QUIT;
+
+Hacer respaldo:
+  mysqldump -u root -p chat_db > backup.sql
+
+Restaurar respaldo:
+  mysql -u root -p chat_db < backup.sql
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      COMANDOS DE MONGODB
+═══════════════════════════════════════════════════════════════════════════
+
+Ver versión:
+  mongod --version
+
+Iniciar servicio:
+  sudo service mongodb start
+  (O: sudo systemctl start mongod)
+
+Parar servicio:
+  sudo service mongodb stop
+
+Ver estado:
+  sudo service mongodb status
+
+Entrar a MongoDB:
+  mongosh              (cliente moderno)
+  mongo                (cliente antiguo)
+
+Dentro de MongoDB:
+
+  Mostrar bases de datos:
+    show dbs
+
+  Usar base de datos:
+    use chat_db
+
+  Mostrar colecciones:
+    show collections
+
+  Insertar documento:
+    db.usuarios.insertOne({
+      nombre: 'Alex',
+      email: 'alex@email.com'
+    })
+
+  Ver documentos:
+    db.usuarios.find()
+    db.usuarios.find().pretty()
+    db.usuarios.findOne()
+
+  Filtrar:
+    db.usuarios.find({nombre: 'Alex'})
+
+  Actualizar:
+    db.usuarios.updateOne(
+      {nombre: 'Alex'},
+      {$set: {email: 'alex_nuevo@email.com'}}
+    )
+
+  Agregar elemento a array:
+    db.usuarios.updateOne(
+      {nombre: 'Alex'},
+      {$push: {mensajes: {contenido: 'Hola'}}}
+    )
+
+  Eliminar:
+    db.usuarios.deleteOne({nombre: 'Alex'})
+
+  Contar documentos:
+    db.usuarios.countDocuments()
+
+  Salir:
+    exit
+    quit()
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      COMANDOS DE GIT
+═══════════════════════════════════════════════════════════════════════════
+
+Ver versión:
+  git --version
+
+Configurar usuario (primera vez):
+  git config --global user.email "tu@email.com"
+  git config --global user.name "Tu Nombre"
+
+Ver configuración:
+  git config --global --list
+
+Inicializar repositorio:
+  git init
+
+Ver estado:
+  git status
+
+Agregar archivos:
+  git add archivo.py      (archivo específico)
+  git add .               (todos los archivos)
+
+Ver cambios:
+  git diff                (cambios no guardados)
+  git diff --cached       (cambios preparados)
+
+Hacer commit:
+  git commit -m "descripción"
+
+Ver historial:
+  git log
+  git log --oneline
+
+Ver branches:
+  git branch
+  git branch -a
+
+Crear branch:
+  git branch nombre_rama
+
+Cambiar branch:
+  git checkout nombre_rama
+  git switch nombre_rama
+
+Crear y cambiar:
+  git checkout -b nombre_rama
+
+Fusionar branches:
+  git merge nombre_rama
+
+Eliminar branch:
+  git branch -d nombre_rama
+
+Conectar repositorio remoto:
+  git remote add origin URL
+
+Ver repositorios remotos:
+  git remote -v
+
+Enviar a GitHub:
+  git push -u origin main
+
+Traer cambios:
+  git pull
+  git fetch
+
+Clonar repositorio:
+  git clone URL
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      ATAJOS Y TRUCOS
+═══════════════════════════════════════════════════════════════════════════
+
+Autocompletado:
+  Escribe las primeras letras + TAB
+
+Historial de comandos:
+  Flecha arriba/abajo en terminal
+
+Limpiar pantalla:
+  clear
+
+Buscar en historial:
+  Ctrl + R (escribe comando)
+
+Cancelar comando:
+  Ctrl + C
+
+Suspender programa:
+  Ctrl + Z
+
+Crear múltiples directorios:
+  mkdir -p carpeta1/carpeta2/carpeta3
+
+Ver últimas líneas de archivo:
+  tail -n 20 archivo.txt
+
+Ver primeras líneas:
+  head -n 20 archivo.txt
+
+Contar líneas:
+  wc -l archivo.txt
+
+Buscar en archivo:
+  grep "texto" archivo.txt
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      PARÁMETROS COMUNES
+═══════════════════════════════════════════════════════════════════════════
+
+-u          usuario (user)
+-p          contraseña (password)
+-h          host
+-v          versión
+-help       ayuda
+-r          recursivo
+-f          forzar
+-i          interactivo
+-l          listar
+-m          mensaje
+-a          all (todos)
+-v          verbose (detallado)
+
+
+═══════════════════════════════════════════════════════════════════════════
+                   ESTRUCTURA TÍPICA DE UN PROYECTO
+═══════════════════════════════════════════════════════════════════════════
+
+socket_project/
+├── venv/                 (No subir a GitHub)
+│   ├── bin/
+│   ├── lib/
+│   └── include/
+├── .git/                 (Control de versiones)
+├── .gitignore            (Archivos a ignorar)
+├── requirements.txt      (Dependencias)
+├── README.md             (Documentación)
+├── server.py             (Servidor)
+├── client.py             (Cliente)
+└── config.py             (Configuración)
+
+
+═══════════════════════════════════════════════════════════════════════════
+                     ARCHIVO .gitignore TÍPICO
+═══════════════════════════════════════════════════════════════════════════
+
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+*.log
+*.sqlite3
+.vscode/
+.idea/
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      TROUBLESHOOTING RÁPIDO
+═══════════════════════════════════════════════════════════════════════════
+
+Problema: "Port already in use"
+Solución:
+  lsof -i :5000
+  kill -9 PID_QUE_APAREZCA
+
+Problema: "Permission denied"
+Solución:
+  sudo comando
+  O cambiar permisos: chmod 755 archivo.py
+
+Problema: "Command not found"
+Solución:
+  Verificar que esté instalado
+  Verificar ruta (usar 'which comando')
+
+Problema: "No module named..."
+Solución:
+  Activar entorno: source venv/bin/activate
+  Instalar paquete: pip install nombre_paquete
+
+Problema: "Connection refused"
+Solución:
+  Verificar que servidor esté corriendo
+  Verificar HOST y PORT
+  Verificar firewall
+
+Problema: "Can't connect to MySQL socket"
+Solución:
+  sudo service mysql start
+  Verificar contraseña
+
+Problema: "externally-managed-environment"
+Solución:
+  Usar siempre entorno virtual
+  source venv/bin/activate
+
+
+═══════════════════════════════════════════════════════════════════════════
+                    COMBINACIONES ÚTILES
+═══════════════════════════════════════════════════════════════════════════
+
+Ver línea específica de archivo:
+  sed -n '10p' archivo.txt
+
+Contar ocurrencias:
+  grep -c "patrón" archivo.txt
+
+Reemplazar en archivo:
+  sed -i 's/viejo/nuevo/g' archivo.txt
+
+Mostrar árbol de directorios:
+  tree
+  (si no está instalado: ls -R)
+
+Ver uso de disco:
+  du -sh carpeta/
+
+Ver memoria:
+  free -h
+
+Ver procesos:
+  top
+  htop
+
+Comprimir:
+  tar -czf archivo.tar.gz carpeta/
+
+Descomprimir:
+  tar -xzf archivo.tar.gz
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      VELOCIDADES DE REFERENCIA
+═══════════════════════════════════════════════════════════════════════════
+
+Conexión TCP: Microsegundos (0.000001 segundos)
+Query SQL: Milisegundos (0.001 segundos)
+Lectura de disco: Milisegundos (1-10 ms)
+Latencia de red: 10-100 ms
+
+
+═══════════════════════════════════════════════════════════════════════════
+                    COMANDOS FINALES IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════
+
+Verificar todo antes de terminar:
+  ps aux | grep python
+  sudo service mysql status
+  sudo service mongodb status
+  git status
+  git log
+
+Guardar work antes de desconectar:
+  git add .
+  git commit -m "Trabajo en progreso"
+  git push
+
+═══════════════════════════════════════════════════════════════════════════
+Última actualización: Mayo 2026
+═══════════════════════════════════════════════════════════════════════════
