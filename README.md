@@ -262,8 +262,3 @@ Universidad Politécnica Estatal del Carchi
 
 ## 📄 Licencia
 Este proyecto es para propósitos educativos.
-
----
-
-Para ejecutar la práctica completa, seguir los pasos del archivo `GUIA_RAPIDA.txt`
-
